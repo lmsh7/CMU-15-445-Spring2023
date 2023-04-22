@@ -15,15 +15,17 @@
 namespace bustub {
 
 TEST(TrieDebugger, TestCase) {
-  std::mt19937_64 gen(2333);
-  std::uniform_int_distribution<uint32_t> dis(0, 100);
-
   auto trie = Trie();
-  for (uint32_t i = 0; i < 10; i++) {
-    std::string key = fmt::format("{}", dis(gen));
-    auto value = dis(gen);
-    trie = trie.Put<uint32_t>(key, value);
-  }
+  trie = trie.Put<uint32_t>("65", 25);
+  trie = trie.Put<uint32_t>("61", 65);
+  trie = trie.Put<uint32_t>("82", 84);
+  trie = trie.Put<uint32_t>("2", 42);
+  trie = trie.Put<uint32_t>("16", 67);
+  trie = trie.Put<uint32_t>("94", 53);
+  trie = trie.Put<uint32_t>("20", 35);
+  trie = trie.Put<uint32_t>("3", 57);
+  trie = trie.Put<uint32_t>("93", 30);
+  trie = trie.Put<uint32_t>("75", 29);
 
   // Put a breakpoint here.
 
