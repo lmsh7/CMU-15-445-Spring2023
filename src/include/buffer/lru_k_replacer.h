@@ -14,6 +14,7 @@
 
 #include <limits>
 #include <list>
+#include <memory>
 #include <mutex>  // NOLINT
 #include <unordered_map>
 #include <vector>
@@ -24,8 +25,17 @@
 namespace bustub {
 
 enum class AccessType { Unknown = 0, Get, Scan };
-
+const size_t INF = 2147483647;
 class LRUKNode {
+ public:
+  explicit LRUKNode(frame_id_t fid, size_t current_time_stamp, size_t k);
+  ~LRUKNode() = default;
+  void SetEvictable(bool set_evictable);
+  auto GetEvictable() -> bool;
+  auto GetKDistence(size_t current_time_stamp) -> size_t;
+  auto GetEarlyTimestamp() -> size_t;
+  void RecordAccess(size_t current_time_stamp);
+
  private:
   /** History of last seen K timestamps of this page. Least recent timestamp stored in front. */
   // Remove maybe_unused if you start using them. Feel free to change the member variables as you want.
@@ -150,10 +160,11 @@ class LRUKReplacer {
  private:
   // TODO(student): implement me! You can replace these member variables as you like.
   // Remove maybe_unused if you start using them.
-  [[maybe_unused]] std::unordered_map<frame_id_t, LRUKNode> node_store_;
+  [[maybe_unused]] std::unordered_map<frame_id_t, std::shared_ptr<LRUKNode> > node_store_;
   [[maybe_unused]] size_t current_timestamp_{0};
   [[maybe_unused]] size_t curr_size_{0};
   [[maybe_unused]] size_t replacer_size_;
+  size_t evictable_size_{0};
   [[maybe_unused]] size_t k_;
   [[maybe_unused]] std::mutex latch_;
 };

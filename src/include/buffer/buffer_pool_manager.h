@@ -191,6 +191,7 @@ class BufferPoolManager {
   /** List of free frames that don't have any pages on them. */
   std::list<frame_id_t> free_list_;
   /** This latch protects shared data structures. We recommend updating this comment to describe what it protects. */
+  /** Protects page_table_, free_list_, and f2p_ */
   std::mutex latch_;
 
   /**
@@ -208,5 +209,9 @@ class BufferPoolManager {
   }
 
   // TODO(student): You may add additional private members and helper functions
+  std::unordered_map<frame_id_t, page_id_t> f2p_;
+  std::unordered_map<page_id_t, bool> page_used_;
+  auto FlushPageUnlocked(page_id_t page_id) -> bool;
+  auto DeletePageUnlocked(page_id_t page_id) -> bool;
 };
 }  // namespace bustub

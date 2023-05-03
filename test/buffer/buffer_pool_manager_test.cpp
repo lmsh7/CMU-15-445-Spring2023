@@ -22,7 +22,7 @@ namespace bustub {
 
 // NOLINTNEXTLINE
 // Check whether pages containing terminal characters can be recovered
-TEST(BufferPoolManagerTest, DISABLED_BinaryDataTest) {
+TEST(BufferPoolManagerTest, BinaryDataTest) {
   const std::string db_name = "test.db";
   const size_t buffer_pool_size = 10;
   const size_t k = 5;
@@ -88,7 +88,7 @@ TEST(BufferPoolManagerTest, DISABLED_BinaryDataTest) {
 }
 
 // NOLINTNEXTLINE
-TEST(BufferPoolManagerTest, DISABLED_SampleTest) {
+TEST(BufferPoolManagerTest, SampleTest) {
   const std::string db_name = "test.db";
   const size_t buffer_pool_size = 10;
   const size_t k = 5;
@@ -137,6 +137,155 @@ TEST(BufferPoolManagerTest, DISABLED_SampleTest) {
   EXPECT_EQ(nullptr, bpm->FetchPage(0));
 
   // Shutdown the disk manager and remove the temporary file we created.
+  disk_manager->ShutDown();
+  remove("test.db");
+
+  delete bpm;
+  delete disk_manager;
+}
+
+// test DeletePage
+TEST(BufferPoolManagerTest, DeletePageTest) {
+  const std::string db_name = "test.db";
+  const size_t buffer_pool_size = 10;
+  const size_t k = 5;
+
+  auto *disk_manager = new DiskManager(db_name);
+  auto *bpm = new BufferPoolManager(buffer_pool_size, disk_manager, k);
+
+  page_id_t page_id_temp;
+  auto *page0 = bpm->NewPage(&page_id_temp);
+  EXPECT_NE(nullptr, page0);
+  EXPECT_EQ(false, bpm->DeletePage(0));
+
+  EXPECT_EQ(true, bpm->UnpinPage(0, true));
+  EXPECT_EQ(true, bpm->DeletePage(0));
+  EXPECT_NE(nullptr, bpm->NewPage(&page_id_temp));
+
+  disk_manager->ShutDown();
+  remove("test.db");
+
+  delete bpm;
+  delete disk_manager;
+}
+
+// test FetchPage
+TEST(BufferPoolManagerTest, FetchPageTest) {
+  const std::string db_name = "test.db";
+  const size_t buffer_pool_size = 5;
+  const size_t k = 1;
+
+  auto *disk_manager = new DiskManager(db_name);
+  auto *bpm = new BufferPoolManager(buffer_pool_size, disk_manager, k);
+
+  bpm->FetchPage(0);
+  bpm->FetchPage(1);
+  bpm->FetchPage(2);
+  bpm->FetchPage(3);
+  bpm->FetchPage(4);
+
+  bpm->UnpinPage(0, true);
+  bpm->FetchPage(0);
+
+  EXPECT_EQ(nullptr, bpm->FetchPage(5));
+
+  // Shutdown the disk manager and remove the temporary file we created.
+  disk_manager->ShutDown();
+  remove("test.db");
+
+  delete bpm;
+  delete disk_manager;
+}
+
+// test IsDirty
+TEST(BufferPoolManagerTest, IsDirtyTest) {
+  const std::string db_name = "test.db";
+  const size_t buffer_pool_size = 5;
+  const size_t k = 1;
+
+  auto *disk_manager = new DiskManager(db_name);
+  auto *bpm = new BufferPoolManager(buffer_pool_size, disk_manager, k);
+
+  auto *page0 = bpm->FetchPage(0);
+  bpm->FetchPage(1);
+  bpm->FetchPage(2);
+  bpm->FetchPage(3);
+  bpm->FetchPage(4);
+
+  bpm->UnpinPage(0, false);
+  EXPECT_EQ(false, bpm->UnpinPage(0, true));
+  EXPECT_EQ(0, page0->GetPinCount());
+  EXPECT_EQ(false, page0->IsDirty());
+
+  bpm->FetchPage(0);
+  bpm->FlushPage(0);
+  bpm->UnpinPage(0, true);
+  EXPECT_EQ(0, page0->GetPinCount());
+  EXPECT_EQ(true, bpm->DeletePage(0));
+
+  disk_manager->ShutDown();
+  remove("test.db");
+
+  delete bpm;
+  delete disk_manager;
+}
+
+// test Integrated
+TEST(BufferPoolManagerTest, IntegratedTest) {
+  const std::string db_name = "test.db";
+  const size_t buffer_pool_size = 5;
+  const size_t k = 1;
+
+  // Scenario: 创建一个新的buffer pool manager
+  auto *disk_manager = new DiskManager(db_name);
+  auto *bpm = new BufferPoolManager(buffer_pool_size, disk_manager, k);
+
+  // Scenario: 创建一个新的page并写入数据
+  page_id_t page_id_temp;
+  auto *page0 = bpm->NewPage(&page_id_temp);
+  snprintf(page0->GetData(), BUSTUB_PAGE_SIZE, "Hello");
+
+  // Scenario: 读取之前写入的数据
+  page0 = bpm->FetchPage(0);
+  EXPECT_EQ(0, strcmp(page0->GetData(), "Hello"));
+
+  // Scenario: 创建新的page直到buffer pool满
+  for (size_t i = 1; i < buffer_pool_size; ++i) {
+    EXPECT_NE(nullptr, bpm->NewPage(&page_id_temp));
+  }
+
+  // Scenario: buffer pool满后不能再创建新的page
+  for (size_t i = buffer_pool_size; i < buffer_pool_size * 2; ++i) {
+    EXPECT_EQ(nullptr, bpm->NewPage(&page_id_temp));
+  }
+
+  // Scenario: unpin pages {0, 1, 2, 3, 4}并pin住4个新的page，此时还有一个buffer page可以读取page 0
+  for (int i = 0; i < 5; ++i) {
+    EXPECT_EQ(true, bpm->UnpinPage(i, true));
+  }
+  for (int i = 0; i < 4; ++i) {
+    EXPECT_NE(nullptr, bpm->NewPage(&page_id_temp));
+  }
+
+  // Scenario: 如果unpin page 0并创建一个新的page，所有的buffer page都应该被pin住，此时读取page 0应该失败
+  EXPECT_EQ(true, bpm->UnpinPage(0, true));
+  EXPECT_NE(nullptr, bpm->NewPage(&page_id_temp));
+  EXPECT_EQ(nullptr, bpm->FetchPage(0));
+
+  // Scenario: 删除page 0
+  EXPECT_EQ(false, bpm->UnpinPage(0, true));
+  EXPECT_EQ(true, bpm->DeletePage(0));
+  EXPECT_EQ(nullptr, bpm->NewPage(&page_id_temp));
+
+  bpm->UnpinPage(5, true);
+  // Scenario: 测试IsDirty
+  page0 = bpm->FetchPage(0);
+  EXPECT_NE(nullptr, page0);
+  bpm->UnpinPage(0, false);
+  EXPECT_EQ(false, bpm->UnpinPage(0, true));
+  EXPECT_EQ(0, page0->GetPinCount());
+  EXPECT_EQ(false, page0->IsDirty());
+  EXPECT_EQ(true, bpm->DeletePage(0));
   disk_manager->ShutDown();
   remove("test.db");
 

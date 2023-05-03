@@ -1,0 +1,51 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+skin rose
+participant DeletePage as D
+participant FetchPage1 as A
+'participant replacer_
+boundary latch_
+participant FetchPage2 as B
+
+activate A
+activate B
+A -> latch_: lock()
+latch_ --> A:
+rnote over A: FREE_LIST 为空
+B -> latch_: lock()
+deactivate B
+
+'A->replacer_: Evict(&fid)
+A -> latch_: unlock()
+latch_ --> A:
+create D
+A -> D: DeletePage()
+deactivate A
+activate D
+
+D -> latch_: lock()
+latch_ --> D
+
+D -> latch_: unlock()
+latch_ --> D
+
+D -> A: return
+deactivate D
+rnote over A: FREE_LIST 大小为 1
+activate A
+
+A -> latch_: lock()
+deactivate A
+
+latch_ --> B:
+activate B
+rnote over B: FREE_LIST 被 FetchPage2 抢占, 重新为空
+
+B -> latch_: unlock()
+deactivate B
+latch_ --> A
+activate A
+rnote over A: FREE_LIST 为空, 被其他线程使用, 发生错误
+
+A -> latch_: unlock()
+@enduml
